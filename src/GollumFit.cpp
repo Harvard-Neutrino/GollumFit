@@ -38,7 +38,7 @@ void binner (HistType& h, const Event& e) {
     assert(!std::isnan(e.energy));
     assert(!std::isnan(e.zenith));
     assert(!std::isnan(e.topology));
-    std::get<0>(h).add(e.energy,cos(e.zenith),e.topology,amount(std::cref(e)));
+    std::get<0>(h).add(e.energy,cos(e.zenith),e.ra,amount(std::cref(e)));
 
 };
 
@@ -522,7 +522,7 @@ void GollumFit::ConstructDataHistogram(){
 
   Hist0 h0(LogarithmicAxis(steeringParams_.logEbinEdge, steeringParams_.logEbinWidth), // energy dimension
                        LinearAxis(steeringParams_.cosThbinEdge, steeringParams_.cosThbinWidth), // zenith dimension
-                       LinearAxis(0,1)); // topology dimension
+                       LinearAxis(steeringParams_.raBinEdge, steeringParams_.raBinWidth)); // RA dimension (NeoDANSA)
 
   dataHist_ = std::make_tuple(h0);
 
@@ -531,6 +531,8 @@ void GollumFit::ConstructDataHistogram(){
   data0.getAxis(0)->setUpperLimit(steeringParams_.maxFitEnergy);
   data0.getAxis(1)->setLowerLimit(steeringParams_.minCosth);
   data0.getAxis(1)->setUpperLimit(steeringParams_.maxCosth);
+  data0.getAxis(2)->setLowerLimit(steeringParams_.minRA);
+  data0.getAxis(2)->setUpperLimit(steeringParams_.maxRA);
 
   // fill in the histogram with the data
   bin(sample_, dataHist_, binner);
@@ -546,7 +548,7 @@ void GollumFit::ConstructSimulationHistogram(){
 
   Hist0 h0(LogarithmicAxis(steeringParams_.logEbinEdge, steeringParams_.logEbinWidth), // energy dimension
            LinearAxis(steeringParams_.cosThbinEdge, steeringParams_.cosThbinWidth),    // zenith dimension
-           LinearAxis(0,1));                                                           // topology dimension
+           LinearAxis(steeringParams_.raBinEdge, steeringParams_.raBinWidth));         // RA dimension (NeoDANSA)
 
   simHist_ = std::make_tuple(h0);
 
@@ -555,6 +557,8 @@ void GollumFit::ConstructSimulationHistogram(){
   sim0.getAxis(0)->setUpperLimit(steeringParams_.maxFitEnergy);
   sim0.getAxis(1)->setLowerLimit(steeringParams_.minCosth);
   sim0.getAxis(1)->setUpperLimit(steeringParams_.maxCosth);
+  sim0.getAxis(2)->setLowerLimit(steeringParams_.minRA);
+  sim0.getAxis(2)->setUpperLimit(steeringParams_.maxRA);
 
   bin(mainSimulation_, simHist_, binner);
 

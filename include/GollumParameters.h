@@ -631,6 +631,11 @@ struct SteeringParams {
   double logEbinWidth;            ///< Width of each energy bin in log10(E/GeV)
   double cosThbinEdge;            ///< Upper edge of the first cos(zenith) bin
   double cosThbinWidth;           ///< Width of each cos(zenith) bin
+  // NeoDANSA: RA axis (replaces the topology axis) in radians
+  double minRA = 0.0;                              ///< Minimum reconstructed RA for the analysis [rad]
+  double maxRA = 6.283185307179586;               ///< Maximum reconstructed RA for the analysis [rad] (2*pi)
+  double raBinEdge = 0.0;                          ///< Lower edge of the first RA bin [rad]
+  double raBinWidth = 6.283185307179586 / 10.0;   ///< Width of each RA bin [rad]
   std::optional<double> astroOscAvgScale = std::nullopt; ///< Energy (GeV) above which the astrophysical flux component is oscillation-averaged in nuSQuIDSAtm; leave unset to disable
 
   std::vector<std::string> ice_gradient_filename;       ///< Ordered list of ice gradient parameter names (e.g. "Amp_0", "Phs_1") corresponding to icegrad0..8
