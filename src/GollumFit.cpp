@@ -767,6 +767,12 @@ void GollumFit::ConstructLikelihoodProblem(){
   // xsec systematics
   GaussianPrior nuxsPrior                      (priors_.nuxsCenter,priors_.nuxsWidth);
   GaussianPrior nubarxsPrior                   (priors_.nubarxsCenter,priors_.nubarxsWidth);
+  // NeoDANSA parameters (inert: priors present so the parameter set is width 43)
+  GaussianPrior gPrior                         (priors_.gCenter,priors_.gWidth);
+  GaussianPrior mphiPrior                      (priors_.mphiCenter,priors_.mphiWidth);
+  GaussianPrior mxPrior                        (priors_.mxCenter,priors_.mxWidth);
+  GaussianPrior normGalacticPrior              (priors_.normGalacticCenter,priors_.normGalacticWidth);
+  GaussianPrior muonNormPrior                  (priors_.muonNormCenter,priors_.muonNormWidth);
 
 
   auto basicpriors=makePriorSet(
@@ -807,7 +813,12 @@ void GollumFit::ConstructLikelihoodProblem(){
     astroPivotPrior,
     NeutrinoAntineutrinoRatioPrior,
     nuxsPrior,
-    nubarxsPrior
+    nubarxsPrior,
+    gPrior,
+    mphiPrior,
+    mxPrior,
+    normGalacticPrior,
+    muonNormPrior
   );
 
 
@@ -892,7 +903,7 @@ void GollumFit::ConstructLikelihoodProblem(){
 
   auto fitseedvec = ConvertFitParameters(fitSeed_.front());
 
-  prob_ = std::make_shared<LType>(phys_tools::likelihood::makeLikelihoodProblem<std::reference_wrapper<const Event>,38>(
+  prob_ = std::make_shared<LType>(phys_tools::likelihood::makeLikelihoodProblem<std::reference_wrapper<const Event>,43>(
                                   dataHist_, {simHist_}, llhpriors, {0.0}, simpleLocalDataWeighterConstructor(), DFWM,
                                   phys_tools::likelihood::SAYLikelihoodRelativeUncertaintyMod(0), fitseedvec));
   prob_->setEvaluationThreadCount(steeringParams_.evalThreads);
@@ -912,7 +923,7 @@ double GollumFit::EvalLLH(FitParameters nuisance, bool include_prior) const {
   return EvalLLH(ConvertFitParameters(nuisance),include_prior);
 }
 
-phys_tools::autodiff::FD<38> GollumFit::EvalLLHGradient(std::vector<phys_tools::autodiff::FD<38>> v) const {
+phys_tools::autodiff::FD<43> GollumFit::EvalLLHGradient(std::vector<phys_tools::autodiff::FD<43>> v) const {
   return -prob_->evaluateLikelihood(v);
 }
 
@@ -996,6 +1007,11 @@ FitResult GollumFit::MinLLH() const {
     minimizer.addParameter( seed[35], .001, boundParams_.NeutrinoAntineutrinoRatioMin, boundParams_.NeutrinoAntineutrinoRatioMax ); // conv particle balance
     minimizer.addParameter( seed[36], .001, boundParams_.nuxsMin,                      boundParams_.nuxsMax                      ); // nuxs
     minimizer.addParameter( seed[37], .001, boundParams_.nubarxsMin,                   boundParams_.nubarxsMax                   ); // nubarxs
+    minimizer.addParameter( seed[38], .001, boundParams_.gMin,                         boundParams_.gMax                         ); // g (NeoDANSA)
+    minimizer.addParameter( seed[39], .001, boundParams_.mphiMin,                      boundParams_.mphiMax                      ); // mphi (NeoDANSA)
+    minimizer.addParameter( seed[40], .001, boundParams_.mxMin,                        boundParams_.mxMax                        ); // mx (NeoDANSA)
+    minimizer.addParameter( seed[41], .001, boundParams_.normGalacticMin,              boundParams_.normGalacticMax              ); // normGalactic (NeoDANSA)
+    minimizer.addParameter( seed[42], .001, boundParams_.muonNormMin,                  boundParams_.muonNormMax                  ); // muonNorm (NeoDANSA)
 
     minimizer.setHistorySize(20);
 
@@ -1151,8 +1167,13 @@ std::vector<double> GollumFit::ConvertFitParameters(FitParameters ns) const {
   nuis.push_back(ns.NeutrinoAntineutrinoRatio);
   nuis.push_back(ns.nuxs);
   nuis.push_back(ns.nubarxs);
+  nuis.push_back(ns.g);
+  nuis.push_back(ns.mphi);
+  nuis.push_back(ns.mx);
+  nuis.push_back(ns.normGalactic);
+  nuis.push_back(ns.muonNorm);
 
-  assert(nuis.size() == 38);
+  assert(nuis.size() == 43);
 
   return nuis;
 }
@@ -1199,8 +1220,13 @@ std::vector<bool> GollumFit::ConvertFitParametersFlag(FitParametersFlag ns) cons
   nuis.push_back(ns.NeutrinoAntineutrinoRatio);
   nuis.push_back(ns.nuxs);
   nuis.push_back(ns.nubarxs);
+  nuis.push_back(ns.g);
+  nuis.push_back(ns.mphi);
+  nuis.push_back(ns.mx);
+  nuis.push_back(ns.normGalactic);
+  nuis.push_back(ns.muonNorm);
 
-  assert(nuis.size() == 38);
+  assert(nuis.size() == 43);
 
   return nuis;
 }
@@ -1247,6 +1273,11 @@ FitParameters GollumFit::ConvertVecToFitParameters(std::vector<double> vecns) co
   ns.NeutrinoAntineutrinoRatio = vecns[35];
   ns.nuxs                      = vecns[36];
   ns.nubarxs                   = vecns[37];
+  ns.g                         = vecns[38];
+  ns.mphi                      = vecns[39];
+  ns.mx                        = vecns[40];
+  ns.normGalactic              = vecns[41];
+  ns.muonNorm                  = vecns[42];
 
   return ns;
 }

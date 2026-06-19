@@ -1139,6 +1139,13 @@ struct WeighterMaker{
                 DataType NeutrinoAntineutrinoRatio = params[35];
                 DataType nuxs                      = params[36];
                 DataType nubarxs                   = params[37];
+                // NeoDANSA parameters (inert until the weighters are wired in a later plan)
+                DataType g            = params[38];
+                DataType mphi         = params[39];
+                DataType mx           = params[40];
+                DataType normGalactic = params[41];
+                DataType muonNorm     = params[42];
+                (void)g; (void)mphi; (void)mx; (void)normGalactic; (void)muonNorm;
 
 
                 // phys_tools::autodiff::FD<38> paux;

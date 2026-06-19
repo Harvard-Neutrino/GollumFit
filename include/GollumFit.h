@@ -102,7 +102,12 @@ using BasicPrior = FixedSizePriorSet<GaussianPrior,
                                      UniformPrior,   // astroPivot
                                      GaussianPrior,
                                      GaussianPrior,
-                                     GaussianPrior>;
+                                     GaussianPrior,
+                                     GaussianPrior,  // g (NeoDANSA)
+                                     GaussianPrior,  // mphi (NeoDANSA)
+                                     GaussianPrior,  // mx (NeoDANSA)
+                                     GaussianPrior,  // normGalactic (NeoDANSA)
+                                     GaussianPrior>; // muonNorm (NeoDANSA)
 
 /// @brief Full correlated prior type: combines @c BasicPrior with a 16×16 multivariate Gaussian for flux parameters
 /// and a 9×9 multivariate Gaussian for ice gradient parameters.
@@ -110,7 +115,7 @@ using CPrior = ArbitraryPriorType<PriorIndices, BasicPrior, GaussianNDPrior<16>,
 
 /// @brief The complete likelihood problem type, templating over the event type, histogram, data weighter,
 /// MC weighter maker, prior, MC statistical uncertainty modifier, and number of nuisance parameters.
-using LType=LikelihoodProblem<std::reference_wrapper<const Event>, HistType,simpleLocalDataWeighterConstructor,sterile::WeighterMaker,CPrior,SAYLikelihoodRelativeUncertaintyMod,38>;
+using LType=LikelihoodProblem<std::reference_wrapper<const Event>, HistType,simpleLocalDataWeighterConstructor,sterile::WeighterMaker,CPrior,SAYLikelihoodRelativeUncertaintyMod,43>;
 
 /// @brief Convenience alias for a 3D array of doubles (topology × cos(zenith) × energy) used to return histograms.
 using hist_marray=marray<double,3>;
@@ -1201,7 +1206,7 @@ class GollumFit {
     * @param v A vector containing the nuisance parameters wrapped in autodiff variables.
     * @return The gradient of the negative log-likelihood with respect to the nuisance parameters.
     */
-    phys_tools::autodiff::FD<38> EvalLLHGradient(std::vector<phys_tools::autodiff::FD<38>> v) const;
+    phys_tools::autodiff::FD<43> EvalLLHGradient(std::vector<phys_tools::autodiff::FD<43>> v) const;
 
     /**
     * @brief Minimize the negative log-likelihood for the set problem.

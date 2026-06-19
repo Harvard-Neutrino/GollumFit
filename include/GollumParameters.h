@@ -93,6 +93,13 @@ struct FitParameters {
   float nuxs;                 ///< Neutrino CC cross section attenuation factor (spline parameter)
   float nubarxs;              ///< Antineutrino CC cross section attenuation factor (spline parameter)
 
+  // NeoDANSA physics + flux parameters (inert until the weighters are wired)
+  float g;                    ///< DM-neutrino coupling g_chi*g_nu (DANSA convention)
+  float mphi;                 ///< Mediator mass (eV)
+  float mx;                   ///< Dark matter mass (eV)
+  float normGalactic;         ///< Galactic neutrino flux normalization (scale factor)
+  float muonNorm;             ///< Atmospheric muon (Corsika/MuonGun) normalization (scale factor)
+
   /**
   * @brief Default constructor
   */
@@ -158,6 +165,11 @@ struct FitParametersFlag {
   bool NeutrinoAntineutrinoRatio = true;
   bool nuxs = true;
   bool nubarxs = true;
+  bool g = true;
+  bool mphi = true;
+  bool mx = true;
+  bool normGalactic = true;
+  bool muonNorm = true;
 
   /**
   * @brief Constructor
@@ -207,7 +219,12 @@ struct FitParametersFlag {
     astroPivot = flag;
     NeutrinoAntineutrinoRatio = flag;
     nuxs = flag;
-    nubarxs = flag;    
+    nubarxs = flag;
+    g = flag;
+    mphi = flag;
+    mx = flag;
+    normGalactic = flag;
+    muonNorm = flag;
   }
 
 };
@@ -295,6 +312,16 @@ struct FitParametersBound {
   float nuxsMax;
   float nubarxsMin;
   float nubarxsMax;
+  float gMin;
+  float gMax;
+  float mphiMin;
+  float mphiMax;
+  float mxMin;
+  float mxMax;
+  float normGalacticMin;
+  float normGalacticMax;
+  float muonNormMin;
+  float muonNormMax;
 
   /**
   * @brief Default constructor
@@ -386,10 +413,20 @@ struct Priors {
   float astroPivotMin,astroPivotMax; 
   float NeutrinoAntineutrinoRatioWidth; 
   float NeutrinoAntineutrinoRatioCenter;
-  float nuxsWidth; 
+  float nuxsWidth;
   float nuxsCenter;
-  float nubarxsWidth; 
+  float nubarxsWidth;
   float nubarxsCenter;
+  float gWidth;
+  float gCenter;
+  float mphiWidth;
+  float mphiCenter;
+  float mxWidth;
+  float mxCenter;
+  float normGalacticWidth;
+  float normGalacticCenter;
+  float muonNormWidth;
+  float muonNormCenter;
 
   float flux_corr[16][16];///< Flux parameters correlation matrix
   float ice_corr[9][9];///< Ice parameters correlation matrix
@@ -442,6 +479,11 @@ struct Priors {
     NeutrinoAntineutrinoRatioCenter = fit_params.NeutrinoAntineutrinoRatio;
     nuxsCenter = fit_params.nuxs;
     nubarxsCenter = fit_params.nubarxs;
+    gCenter = fit_params.g;
+    mphiCenter = fit_params.mphi;
+    mxCenter = fit_params.mx;
+    normGalacticCenter = fit_params.normGalactic;
+    muonNormCenter = fit_params.muonNorm;
   }
   
   /**

@@ -119,6 +119,12 @@ inline std::unordered_map<int, PriorPair> make_prior_map(const Priors& p)
     m[36] = {p.nuxsCenter,               p.nuxsWidth};
     m[37] = {p.nubarxsCenter,            p.nubarxsWidth};
 
+    m[38] = {p.gCenter,                  p.gWidth};
+    m[39] = {p.mphiCenter,               p.mphiWidth};
+    m[40] = {p.mxCenter,                 p.mxWidth};
+    m[41] = {p.normGalacticCenter,       p.normGalacticWidth};
+    m[42] = {p.muonNormCenter,           p.muonNormWidth};
+
     return m;
 }
 
@@ -252,7 +258,12 @@ inline FitResult Dive(
         {bounds.astroPivotMin, bounds.astroPivotMax},                         // 34
         {bounds.NeutrinoAntineutrinoRatioMin, bounds.NeutrinoAntineutrinoRatioMax}, // 35
         {bounds.nuxsMin, bounds.nuxsMax},                                     // 36
-        {bounds.nubarxsMin, bounds.nubarxsMax}                                // 37
+        {bounds.nubarxsMin, bounds.nubarxsMax},                               // 37
+        {bounds.gMin, bounds.gMax},                                           // 38
+        {bounds.mphiMin, bounds.mphiMax},                                     // 39
+        {bounds.mxMin, bounds.mxMax},                                         // 40
+        {bounds.normGalacticMin, bounds.normGalacticMax},                     // 41
+        {bounds.muonNormMin, bounds.muonNormMax}                              // 42
     };
 
     std::vector<double> lower(D), upper(D);

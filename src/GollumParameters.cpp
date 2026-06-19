@@ -57,6 +57,11 @@ std::ostream& operator<<(std::ostream& os, const FitParameters& fp){
   os << "NeutrinoAntineutrinoRatio : " << fp.NeutrinoAntineutrinoRatio << std::endl;
   os << "nuxs                      : " << fp.nuxs << std::endl;
   os << "nubarxs                   : " << fp.nubarxs << std::endl;
+  os << "g                         : " << fp.g << std::endl;
+  os << "mphi                      : " << fp.mphi << std::endl;
+  os << "mx                        : " << fp.mx << std::endl;
+  os << "normGalactic              : " << fp.normGalactic << std::endl;
+  os << "muonNorm                  : " << fp.muonNorm << std::endl;
   return os;
 }
 
