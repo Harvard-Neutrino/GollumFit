@@ -102,7 +102,7 @@ $(OBJ_DIR)/GollumFit.o : $(SRC_DIR)/GollumFit.cpp $(INC_DIR)/Event.h $(INC_DIR)/
 $(DYN_PRODUCT) : $(OBJECTS)
 	@echo Linking dynamic library $(DYN_PRODUCT)
 	@mkdir -p ../lib/
-	@$(CXX) $(DYN_OPT)  $(LDFLAGS) -o $(DYN_PRODUCT) $(OBJECTS)
+	@$(CXX) $(DYN_OPT) -o $(DYN_PRODUCT) $(OBJECTS) $(LDFLAGS)
 
 $(STAT_PRODUCT) : $(OBJECTS)
 	@echo Linking static library $(STAT_PRODUCT)

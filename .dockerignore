@@ -1,0 +1,8 @@
+**/.git
+**/build
+docs/doxygen
+resources
+monte_carlo
+data
+*.h5
+*.hdf5

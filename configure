@@ -819,7 +819,7 @@ $(LIB_GF)/GollumFit.o : $(SRC_GF)/GollumFit.cpp $(INC_GF)/Event.h $(INC_GF)/anal
 $(DYN_PRODUCT) : $(OBJECTS)
 	@echo Linking dynamic library $(DYN_PRODUCT)
 	@mkdir -p $(LIB_GF)/lib/
-	@$(CXX) $(DYN_OPT)  $(LDFLAGS) -o $(DYN_PRODUCT) $(OBJECTS)
+	@$(CXX) $(DYN_OPT) -o $(DYN_PRODUCT) $(OBJECTS) $(LDFLAGS)
 
 $(STAT_PRODUCT) : $(OBJECTS)
 	@echo Linking static library $(STAT_PRODUCT)
