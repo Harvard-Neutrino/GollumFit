@@ -83,9 +83,16 @@ public:
   // reconstructed quantities
   float energy;
   float zenith;
+  float ra = 0.f;                  ///< NeoDANSA: reconstructed right ascension / azimuth [rad]
 
   // topology
   unsigned int topology;
+
+  // NeoDANSA per-event caches (default-initialized; populated/used in later plans)
+  double columnDens = 0.;          ///< DM column density along the extragalactic line of sight
+  double columnDensGalactic = 0.;  ///< DM column density along the galactic line of sight
+  double spatialTemplate = 0.;     ///< Per-event galactic spatial-template weight
+  double cachedMuonWeight = 0.;    ///< Precomputed atmospheric-muon (Corsika/MuonGun) weight
 
   // cached quantities
   float cachedWeight;
