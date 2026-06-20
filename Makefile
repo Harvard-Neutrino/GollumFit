@@ -45,7 +45,7 @@ LDFLAGS+=-lSQuIDS -lnuSQuIDS
 LDFLAGS+=-lLeptonWeighter
 LDFLAGS+=-lphotospline -lcfitsio
 
-GOLLUM_HELPER_OBJECTS = Event.o analysisWeighting.o utils.o compactIO.o GollumFit.o GollumParameters.o GollumTools.o GollumEnumDefinitions.o
+GOLLUM_HELPER_OBJECTS = Event.o analysisWeighting.o utils.o compactIO.o GollumFit.o GollumParameters.o GollumTools.o GollumEnumDefinitions.o DMCrossSections.o
 
 OS_NAME=$(shell uname -s)
 
@@ -80,6 +80,9 @@ $(OBJ_DIR)/analysisWeighting.o : $(SRC_DIR)/analysisWeighting.cpp $(INC_DIR)/ana
 
 $(OBJ_DIR)/GollumParameters.o : $(SRC_DIR)/GollumParameters.cpp $(INC_DIR)/GollumParameters.h
 	$(CXX) $(CXXFLAGS) $(SRC_DIR)/GollumParameters.cpp -c -o $(OBJ_DIR)/GollumParameters.o
+
+$(OBJ_DIR)/DMCrossSections.o : $(SRC_DIR)/DMCrossSections.cpp $(INC_DIR)/DMCrossSections.h
+	$(CXX) $(CXXFLAGS) $(SRC_DIR)/DMCrossSections.cpp -c -o $(OBJ_DIR)/DMCrossSections.o
 
 $(OBJ_DIR)/compactIO.o : $(INC_DIR)/compactIO.h $(SRC_DIR)/compactIO.cpp $(INC_DIR)/Event.h $(INC_DIR)/analysisWeighting.h
 	$(CXX) $(CXXFLAGS) $(SRC_DIR)/compactIO.cpp -c -o $(OBJ_DIR)/compactIO.o

@@ -763,7 +763,7 @@ LDFLAGS+=-lPhysTools
 LDFLAGS+=-lSQuIDS -lnuSQuIDS
 LDFLAGS+=-lLeptonWeighter
 
-GOLLUM_HELPER_OBJECTS = Event.o analysisWeighting.o utils.o compactIO.o GollumFit.o GollumParameters.o GollumTools.o GollumEnumDefinitions.o
+GOLLUM_HELPER_OBJECTS = Event.o analysisWeighting.o utils.o compactIO.o GollumFit.o GollumParameters.o GollumTools.o GollumEnumDefinitions.o DMCrossSections.o
 
 OS_NAME=$(shell uname -s)
 
@@ -797,6 +797,9 @@ $(LIB_GF)/analysisWeighting.o : $(SRC_GF)/analysisWeighting.cpp $(INC_GF)/analys
 
 $(LIB_GF)/GollumParameters.o : $(SRC_GF)/GollumParameters.cpp $(INC_GF)/GollumParameters.h
 	$(CXX) $(CXXFLAGS) $(SRC_GF)/GollumParameters.cpp -c -o $(LIB_GF)/GollumParameters.o
+
+$(LIB_GF)/DMCrossSections.o : $(SRC_GF)/DMCrossSections.cpp $(INC_GF)/DMCrossSections.h
+	$(CXX) $(CXXFLAGS) $(SRC_GF)/DMCrossSections.cpp -c -o $(LIB_GF)/DMCrossSections.o
 
 $(LIB_GF)/compactIO.o : $(INC_GF)/compactIO.h $(SRC_GF)/compactIO.cpp $(INC_GF)/Event.h $(INC_GF)/analysisWeighting.h
 	$(CXX) $(CXXFLAGS) $(SRC_GF)/compactIO.cpp -c -o $(LIB_GF)/compactIO.o

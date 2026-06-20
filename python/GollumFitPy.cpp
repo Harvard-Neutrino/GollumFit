@@ -7,6 +7,7 @@
 #include <functional>
 #include "GollumFit.h"
 #include "GollumFitDiverWrapper.h"
+#include "DMCrossSections.h"
 
 #include <numpy/ndarrayobject.h>
 #include <numpy/ndarraytypes.h>
@@ -106,6 +107,12 @@ namespace pybind11 { namespace detail {
 PYBIND11_MODULE(GollumFitPy, m)
 {
   m.doc() = "Python bindings for GollumFit via pybind11";
+
+  // NeoDANSA: DM cross-section accessors (for parity testing vs DANSA)
+  m.def("dm_sigma", [](const std::string& n,double Ei,double g,double mphi,double mx){
+      return gollumfit::dm::sigma(gollumfit::dm::interaction_from_string(n),Ei,g,mphi,mx); });
+  m.def("dm_dsigmade", [](const std::string& n,double Ei,double Ef,double g,double mphi,double mx){
+      return gollumfit::dm::dsigmade(gollumfit::dm::interaction_from_string(n),Ei,Ef,g,mphi,mx); });
 
   // m.def("marray_to_numpy1", &marray_to_numpy<1>);
   // m.def("marray_to_numpy2", &marray_to_numpy<2>);
