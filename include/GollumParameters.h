@@ -641,6 +641,7 @@ struct SteeringParams {
   std::string interaction = "fermscal";            ///< DM interaction name (scalar/fermion/vector/fermscal/sfermion)
   double gammaAstro = 2.53;                        ///< Astrophysical spectral index for the NeoDANSA astro weighter
   double gammaGalactic = 2.7;                      ///< Galactic spectral index (pi0 template) for the NeoDANSA galactic weighter
+  double neodansaExposure = 304100756.4628376;     ///< Analysis exposure [s] for the NeoDANSA weighter (burn sample = x0.1)
   std::optional<double> astroOscAvgScale = std::nullopt; ///< Energy (GeV) above which the astrophysical flux component is oscillation-averaged in nuSQuIDSAtm; leave unset to disable
 
   std::vector<std::string> ice_gradient_filename;       ///< Ordered list of ice gradient parameter names (e.g. "Amp_0", "Phs_1") corresponding to icegrad0..8

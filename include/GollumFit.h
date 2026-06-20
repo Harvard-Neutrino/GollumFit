@@ -889,6 +889,13 @@ class GollumFit {
     hist_marray GetExpectation(FitParameters fp) const;
 
     /**
+    * @brief NeoDANSA: per-component DM-attenuated expectation (component 0=astro+galactic,
+    * 1=astro, 2=galactic). Builds one DMAttenuator on (interaction,g,mphi,mx), prepares it
+    * for gammaAstro/gammaGalactic, and applies the NeoDANSA astro/galactic weight per event.
+    */
+    hist_marray GetExpectationComponent(FitParameters fp, int component) const;
+
+    /**
     * @brief Generates a simulated data realization based on input nuisance parameters
     *       using a specified random seed.
     *

@@ -7,8 +7,27 @@
 #include "GollumFit.h"
 #include "FastMode.h"
 #include "GollumMCSpecifications.h"
+#include "DMCrossSections.h"
+#include "DMAttenuation.h"
+#include "NeoDANSAWeighter.h"
 
 namespace gollumfit {
+
+hist_marray GollumFit::GetExpectationComponent(FitParameters fp, int component) const {
+  dm::DMInteraction in = dm::interaction_from_string(steeringParams_.interaction);
+  dm::DMAttenuator attA(in, fp.g, fp.mphi, fp.mx);
+  dm::DMAttenuator attG(in, fp.g, fp.mphi, fp.mx);
+  attA.prepare(steeringParams_.gammaAstro);
+  attG.prepare(steeringParams_.gammaGalactic);
+  NeoDANSAWeighter wgt;
+  wgt.attAstro = &attA; wgt.attGal = &attG;
+  wgt.astroNorm = fp.astroNorm; wgt.normGalactic = fp.normGalactic;
+  wgt.gammaAstro = steeringParams_.gammaAstro; wgt.gammaGalactic = steeringParams_.gammaGalactic;
+  wgt.exposure = steeringParams_.neodansaExposure;
+  wgt.component = component;
+  std::function<double(const Event&)> f = [&wgt](const Event& e){ return wgt(e); };
+  return GetWeightedExpectation(f);
+}
 
 // NeoDANSA: read a 1D double dataset from an open HDF5 file (C API).
 static std::vector<double> neodansa_readH5Vec(hid_t file, const char* name){
