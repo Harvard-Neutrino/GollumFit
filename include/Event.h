@@ -93,6 +93,7 @@ public:
   double columnDensGalactic = 0.;  ///< DM column density along the galactic line of sight
   double spatialTemplate = 0.;     ///< Per-event galactic spatial-template weight
   double cachedMuonWeight = 0.;    ///< Precomputed atmospheric-muon (Corsika/MuonGun) weight
+  double oneWeight = 0.;           ///< NeoDANSA: OneWeight/NEvents/nFiles (per-event generation weight)
 
   // cached quantities
   float cachedWeight;

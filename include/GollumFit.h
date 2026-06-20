@@ -587,6 +587,16 @@ class GollumFit {
     GollumFit(DataPaths dataPaths, SteeringParams steeringParams);
 
     /**
+    * @brief NeoDANSA: load MC from a flat HDF5 with pre-computed per-event quantities,
+    * bypassing the nuSQuIDS/LeptonWeighter flux machinery. Populates mainSimulation_,
+    * sets simulation_loaded_, and builds the simulation histogram.
+    */
+    void LoadNeoDANSAMC(const std::string& path);
+
+    /** @brief NeoDANSA: number of loaded MC events. */
+    size_t NumMCEvents() const { return mainSimulation_.size(); }
+
+    /**
     * @brief Reconfigures the analysis framework with new data paths and steering parameters. The function template
     * called in the GollumFit constructor.
     * 
@@ -650,30 +660,35 @@ class GollumFit {
                                       steeringParams_,
                                       dataPaths_);
 
-        if(dataPaths_.compact_file_path!=""){
-            std::cout<<"Loading compact data" <<std::endl;
-            LoadCompact();
+        if(steeringParams_.useNeoDANSAWeighter){
+          std::cout<<"NeoDANSA custom-load mode: skipping flux weighters + LoadMC; "
+                     "call LoadNeoDANSAMC() to load MC and build the simulation histogram." <<std::endl;
         } else {
-          std::cout<<"Loading Flux weighter" <<std::endl;
-          ConstructFluxWeighter();
-          std::cout<<"Loading XS" <<std::endl;
-          ConstructCrossSectionWeighter();
-          std::cout<<"Loading MC weighter" <<std::endl;
-          ConstructMonteCarloGenerationWeighter();
-          std::cout<<"Loading Lepton weighter" <<std::endl;
-          ConstructLeptonWeighter();
-          // std::cout<<"Loading data" <<std::endl;
-          // assert(CheckDataPath(dataPaths_.data_path));
-          // LoadData();
-          std::cout<<"Loading MC" <<std::endl;
-          assert(CheckDataPath(dataPaths_.mc_path));
-          LoadMC();
-        }
+          if(dataPaths_.compact_file_path!=""){
+              std::cout<<"Loading compact data" <<std::endl;
+              LoadCompact();
+          } else {
+            std::cout<<"Loading Flux weighter" <<std::endl;
+            ConstructFluxWeighter();
+            std::cout<<"Loading XS" <<std::endl;
+            ConstructCrossSectionWeighter();
+            std::cout<<"Loading MC weighter" <<std::endl;
+            ConstructMonteCarloGenerationWeighter();
+            std::cout<<"Loading Lepton weighter" <<std::endl;
+            ConstructLeptonWeighter();
+            // std::cout<<"Loading data" <<std::endl;
+            // assert(CheckDataPath(dataPaths_.data_path));
+            // LoadData();
+            std::cout<<"Loading MC" <<std::endl;
+            assert(CheckDataPath(dataPaths_.mc_path));
+            LoadMC();
+          }
 
-        // std::cout<<"Making data hist" <<std::endl;
-        // ConstructDataHistogram();
-        std::cout<<"Making sim hist" <<std::endl;
-        ConstructSimulationHistogram();
+          // std::cout<<"Making data hist" <<std::endl;
+          // ConstructDataHistogram();
+          std::cout<<"Making sim hist" <<std::endl;
+          ConstructSimulationHistogram();
+        }
 
       }
     }

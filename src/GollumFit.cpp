@@ -1,12 +1,60 @@
 #include <cmath>
 #include <algorithm>
 #include <iostream>
+#include <stdexcept>
+#include <hdf5.h>
 
 #include "GollumFit.h"
 #include "FastMode.h"
 #include "GollumMCSpecifications.h"
 
 namespace gollumfit {
+
+// NeoDANSA: read a 1D double dataset from an open HDF5 file (C API).
+static std::vector<double> neodansa_readH5Vec(hid_t file, const char* name){
+  hid_t ds = H5Dopen2(file, name, H5P_DEFAULT);
+  if(ds < 0) throw std::runtime_error(std::string("LoadNeoDANSAMC: missing dataset ")+name);
+  hid_t sp = H5Dget_space(ds);
+  hsize_t n = 0; H5Sget_simple_extent_dims(sp, &n, NULL);
+  std::vector<double> v(n);
+  H5Dread(ds, H5T_NATIVE_DOUBLE, H5S_ALL, H5S_ALL, H5P_DEFAULT, v.data());
+  H5Sclose(sp); H5Dclose(ds);
+  return v;
+}
+
+void GollumFit::LoadNeoDANSAMC(const std::string& path){
+  hid_t file = H5Fopen(path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+  if(file < 0) throw std::runtime_error("LoadNeoDANSAMC: cannot open "+path);
+  auto recoE = neodansa_readH5Vec(file,"recoEnergy");
+  auto dec   = neodansa_readH5Vec(file,"dec");
+  auto ra    = neodansa_readH5Vec(file,"ra");
+  auto trueE = neodansa_readH5Vec(file,"trueEnergy");
+  auto ow    = neodansa_readH5Vec(file,"oneWeight");
+  auto cd    = neodansa_readH5Vec(file,"columnDens");
+  auto cdg   = neodansa_readH5Vec(file,"columnDensGalactic");
+  auto st    = neodansa_readH5Vec(file,"spatialTemplate");
+  H5Fclose(file);
+  const size_t N = recoE.size();
+  mainSimulation_.clear();
+  for(size_t i=0;i<N;++i){
+    Event e;
+    e.energy = (float)recoE[i];
+    e.zenith = (float)std::acos(-std::sin(dec[i])); // cos(zenith) = -sin(dec) at the South Pole
+    e.ra = (float)ra[i];
+    e.primaryEnergy = (float)trueE[i];
+    e.oneWeight = ow[i];
+    e.columnDens = cd[i];
+    e.columnDensGalactic = cdg[i];
+    e.spatialTemplate = st[i];
+    e.num_events = 1;
+    e.topology = 0;
+    e.cachedWeight = 1.0;
+    mainSimulation_.push_back(e);
+  }
+  simulation_loaded_ = true;
+  std::cout << "LoadNeoDANSAMC: loaded " << N << " events from " << path << std::endl;
+  ConstructSimulationHistogram();
+}
 
 /*************************************************************************************************************
  * Constructor

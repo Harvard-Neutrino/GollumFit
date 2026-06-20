@@ -636,6 +636,11 @@ struct SteeringParams {
   double maxRA = 6.283185307179586;               ///< Maximum reconstructed RA for the analysis [rad] (2*pi)
   double raBinEdge = 0.0;                          ///< Lower edge of the first RA bin [rad]
   double raBinWidth = 6.283185307179586 / 10.0;   ///< Width of each RA bin [rad]
+  // NeoDANSA custom-load + signal-weighter configuration
+  bool useNeoDANSAWeighter = false;                ///< If true, skip GollumFit flux/LoadMC; use LoadNeoDANSAMC + NeoDANSA weighters
+  std::string interaction = "fermscal";            ///< DM interaction name (scalar/fermion/vector/fermscal/sfermion)
+  double gammaAstro = 2.53;                        ///< Astrophysical spectral index for the NeoDANSA astro weighter
+  double gammaGalactic = 2.7;                      ///< Galactic spectral index (pi0 template) for the NeoDANSA galactic weighter
   std::optional<double> astroOscAvgScale = std::nullopt; ///< Energy (GeV) above which the astrophysical flux component is oscillation-averaged in nuSQuIDSAtm; leave unset to disable
 
   std::vector<std::string> ice_gradient_filename;       ///< Ordered list of ice gradient parameter names (e.g. "Amp_0", "Phs_1") corresponding to icegrad0..8
