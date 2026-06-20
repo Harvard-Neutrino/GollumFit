@@ -8,6 +8,7 @@
 #include "GollumFit.h"
 #include "GollumFitDiverWrapper.h"
 #include "DMCrossSections.h"
+#include "DMAttenuation.h"
 
 #include <numpy/ndarrayobject.h>
 #include <numpy/ndarraytypes.h>
@@ -113,6 +114,10 @@ PYBIND11_MODULE(GollumFitPy, m)
       return gollumfit::dm::sigma(gollumfit::dm::interaction_from_string(n),Ei,g,mphi,mx); });
   m.def("dm_dsigmade", [](const std::string& n,double Ei,double Ef,double g,double mphi,double mx){
       return gollumfit::dm::dsigmade(gollumfit::dm::interaction_from_string(n),Ei,Ef,g,mphi,mx); });
+  m.def("dm_attenuation", [](const std::string& n,double g,double mphi,double mx,double gamma,
+                             std::vector<double> cd, std::vector<double> trueE){
+      gollumfit::dm::DMAttenuator att(gollumfit::dm::interaction_from_string(n),g,mphi,mx);
+      return att.attenuation(gamma,cd,trueE); });
 
   // m.def("marray_to_numpy1", &marray_to_numpy<1>);
   // m.def("marray_to_numpy2", &marray_to_numpy<2>);
