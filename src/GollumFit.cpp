@@ -24,6 +24,7 @@ hist_marray GollumFit::GetExpectationComponent(FitParameters fp, int component) 
   wgt.astroNorm = fp.astroNorm; wgt.normGalactic = fp.normGalactic;
   wgt.gammaAstro = steeringParams_.gammaAstro; wgt.gammaGalactic = steeringParams_.gammaGalactic;
   wgt.exposure = steeringParams_.neodansaExposure;
+  wgt.convNorm = fp.convNorm; wgt.muonNorm = fp.muonNorm;
   wgt.component = component;
   std::function<double(const Event&)> f = [&wgt](const Event& e){ return wgt(e); };
   return GetWeightedExpectation(f);
@@ -72,6 +73,39 @@ void GollumFit::LoadNeoDANSAMC(const std::string& path){
   }
   simulation_loaded_ = true;
   std::cout << "LoadNeoDANSAMC: loaded " << N << " events from " << path << std::endl;
+  ConstructSimulationHistogram();
+}
+
+void GollumFit::LoadNeoDANSABackground(const std::string& atmoPath, const std::string& muonPath){
+  // atmospheric neutrinos (MCEq weight -> cachedAtmoWeight)
+  {
+    hid_t f = H5Fopen(atmoPath.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+    if(f<0) throw std::runtime_error("LoadNeoDANSABackground: cannot open "+atmoPath);
+    auto E=neodansa_readH5Vec(f,"recoEnergy"); auto dec=neodansa_readH5Vec(f,"dec");
+    auto ra=neodansa_readH5Vec(f,"ra"); auto w=neodansa_readH5Vec(f,"cachedWeight");
+    H5Fclose(f);
+    for(size_t i=0;i<E.size();++i){
+      Event e; e.energy=(float)E[i]; e.zenith=(float)std::acos(-std::sin(dec[i]));
+      e.ra=(float)ra[i]; e.cachedAtmoWeight=w[i]; e.num_events=1; e.topology=0; e.cachedWeight=1.0;
+      mainSimulation_.push_back(e);
+    }
+    std::cout<<"LoadNeoDANSABackground: loaded "<<E.size()<<" atmo-nu events"<<std::endl;
+  }
+  // atmospheric muons (Corsika weight -> cachedMuonWeight)
+  {
+    hid_t f = H5Fopen(muonPath.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+    if(f<0) throw std::runtime_error("LoadNeoDANSABackground: cannot open "+muonPath);
+    auto E=neodansa_readH5Vec(f,"recoEnergy"); auto dec=neodansa_readH5Vec(f,"dec");
+    auto ra=neodansa_readH5Vec(f,"ra"); auto w=neodansa_readH5Vec(f,"cachedWeight");
+    H5Fclose(f);
+    for(size_t i=0;i<E.size();++i){
+      Event e; e.energy=(float)E[i]; e.zenith=(float)std::acos(-std::sin(dec[i]));
+      e.ra=(float)ra[i]; e.cachedMuonWeight=w[i]; e.num_events=1; e.topology=0; e.cachedWeight=1.0;
+      mainSimulation_.push_back(e);
+    }
+    std::cout<<"LoadNeoDANSABackground: loaded "<<E.size()<<" muon events"<<std::endl;
+  }
+  simulation_loaded_ = true;
   ConstructSimulationHistogram();
 }
 

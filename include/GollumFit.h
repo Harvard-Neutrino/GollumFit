@@ -593,6 +593,13 @@ class GollumFit {
     */
     void LoadNeoDANSAMC(const std::string& path);
 
+    /**
+    * @brief NeoDANSA: append atmospheric-nu (cachedAtmoWeight) and muon (cachedMuonWeight)
+    * background events from two flat HDF5 files; rebuilds the simulation histogram.
+    * Appends to mainSimulation_ (does not clear) — call after LoadNeoDANSAMC.
+    */
+    void LoadNeoDANSABackground(const std::string& atmoPath, const std::string& muonPath);
+
     /** @brief NeoDANSA: number of loaded MC events. */
     size_t NumMCEvents() const { return mainSimulation_.size(); }
 

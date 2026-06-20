@@ -94,6 +94,7 @@ public:
   double spatialTemplate = 0.;     ///< Per-event galactic spatial-template weight
   double cachedMuonWeight = 0.;    ///< Precomputed atmospheric-muon (Corsika/MuonGun) weight
   double oneWeight = 0.;           ///< NeoDANSA: OneWeight/NEvents/nFiles (per-event generation weight)
+  double cachedAtmoWeight = 0.;    ///< NeoDANSA: precomputed atmospheric-nu (MCEq) weight
 
   // cached quantities
   float cachedWeight;
