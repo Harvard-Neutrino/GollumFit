@@ -192,7 +192,10 @@ struct DMSurvivalWeighter : public phys_tools::GenericWeighter<DMSurvivalWeighte
     using result_type = T;
     DMSurvivalWeighter(const gollumfit::dm::DMAttenuator* att, double Event::* cd): att_(att), cd_(cd){}
     result_type operator()(const Event& e) const {
-        return result_type(att_->att_one(e.*cd_, (double)e.primaryEnergy));
+        double a = att_->att_one(e.*cd_, (double)e.primaryEnergy);
+        a = (a == a) ? a : 1.0;                 // NaN (e.g. degenerate g=0 solve) -> no attenuation
+        a = a < 0.0 ? 0.0 : (a > 1.0 ? 1.0 : a); // survival probability is bounded in [0,1]
+        return result_type(a);
     }
 };
 
