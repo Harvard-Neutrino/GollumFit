@@ -8,18 +8,34 @@ G_, MPHI, MX = 0.316, 0.264e9, 2.07e-6 * 1e9
 INJ = dict(NA=1.66, NG=2.18, conv=1.0, muon=1.0)  # injected truth
 
 
-def test_injection_recovery():
-    G = L.load_model(GOLDEN, NBINS, interaction="fermscal", gammaAstro=2.53)
+INJ_GAMMA = 2.53
+
+
+def test_injection_recovery_norms():
+    # Linear-norm round trip at fixed gamma (fast sanity check).
+    G = L.load_model(GOLDEN, NBINS, interaction="fermscal", gammaAstro=INJ_GAMMA)
     T = L.unit_templates(G, G_, MPHI, MX)
     data = L.model_mu(T, INJ["NA"], INJ["NG"], INJ["conv"], INJ["muon"])  # Asimov
     x, _ = L.fit_norms(T, data, x0=(1.0, 1.0, 0.5, 0.5))
     NA, NG, conv, muon = x
-    # NA/NG/conv tightly constrained; muon may be weaker (Corsika template is sparse, 91 ev)
-    for got, exp, name, tol in ((NA, INJ["NA"], "NA", 1e-3),
-                                (NG, INJ["NG"], "NG", 1e-3),
-                                (conv, INJ["conv"], "conv", 1e-3),
-                                (muon, INJ["muon"], "muon", 1e-2)):
+    for got, exp, name, tol in ((NA, INJ["NA"], "NA", 1e-3), (NG, INJ["NG"], "NG", 1e-3),
+                                (conv, INJ["conv"], "conv", 1e-3), (muon, INJ["muon"], "muon", 1e-2)):
         assert abs(got - exp) / exp <= tol, f"{name}: {got} vs {exp}"
+
+
+def test_injection_recovery_all_nuisances():
+    # Full round trip: float ALL non-detector nuisances jointly [NA, gammaAstro, NG, conv, muon].
+    G = L.load_model(GOLDEN, NBINS, interaction="fermscal", gammaAstro=INJ_GAMMA)
+    T = L.unit_templates(G, G_, MPHI, MX)  # astro at gamma=INJ_GAMMA
+    data = L.model_mu(T, INJ["NA"], INJ["NG"], INJ["conv"], INJ["muon"])  # Asimov at truth
+    x, _ = L.fit_all_nuisances(G, G_, MPHI, MX, NBINS, data, x0=(1.5, 2.6, 2.0, 0.8, 0.8))
+    NA, gamma, NG, conv, muon = x
+    checks = ((NA, INJ["NA"], "NA", 1e-2), (gamma, INJ_GAMMA, "gammaAstro", 1e-2),
+              (NG, INJ["NG"], "NG", 1e-2), (conv, INJ["conv"], "conv", 1e-2),
+              (muon, INJ["muon"], "muon", 2e-2))
+    for got, exp, name, tol in checks:
+        rel = abs(got - exp) / abs(exp)
+        assert rel <= tol, f"{name}: {got} vs {exp} (rel {rel:.2e})"
 
 
 def test_profile_gamma_minimum():

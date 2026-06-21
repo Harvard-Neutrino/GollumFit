@@ -43,3 +43,31 @@ The shipped `examples/expectations/generate_expectation.py` loads all splines an
 ```bash
 docker run --rm -v "$PWD":/work -w /work/examples/expectations gollumfit:neodansa python3 generate_expectation.py LABEL
 ```
+
+## NeoDANSA native weighter (2026-06-20)
+
+NeoDANSA now uses GollumFit's **native** weighter machinery end-to-end (no bespoke
+flux math):
+- **astro** = `astroNorm · cachedAstroWeight · brokenpowerlawTiltWeighter(astroPivot, astroDeltaGamma, astroDeltaGammaSec) · DM_att`. `cachedAstroWeight` is built in `LoadNeoDANSAMC` from `examples/fluxes/astro.hdf5` (oscillation-averaged) × per-event `OneWeight/(NEvents·nFiles)` × exposure. DANSA single-PL = equal slopes; the index floats via `astroDeltaGamma`.
+- **conv** = `convNorm · ConvFluxWeigther(16 DAEMONFlux params)`. The 16 gradient caches are built in `LoadNeoDANSABackground` from GollumFit's shipped nuSQuIDS gradient tables (`he_K+_.hdf5 … GSF_6_.hdf5`) — GollumFit computes the gradients.
+- **DM attenuation** is the only bespoke per-event factor.
+- MC re-exported with `pdg` (flavor, recovered from snowstorm via the unique 5-key `run,event,subevent,trueE,true_zen`), `trueZenith`, and `OneWeight`.
+- Flux dir passed via `steeringParams.neodansaFluxDir`; tables mounted at runtime (`-v examples/fluxes:/fluxes`, 853 MB).
+
+### Validated
+conv total = 2509.6 (matches DANSA MCEq exactly); DAEMONFlux 1σ shifts ~few %; Asimov
+inject/recover of all non-detector nuisances (astroNorm, astro index, NG, conv, 16
+DAEMONFlux w/ unit priors, muon) closes. `tests/neodansa_native_validate.py` makes the
+figures. **Histogram flatten order is `[ra, cos(zenith), energy]`** — energy is the inner
+axis; energy projection = `reshape(10,10,10).sum(axis=(0,1))`.
+
+### KNOWN LIMITATIONS — flux-table recompute required before physics results
+The shipped `examples/fluxes/*.hdf5` (built by `resources/FluxOscCalculator/*_with_interactions*.cpp`) have two problems for NuGen-based MC:
+1. **Earth absorption double-counted.** The tables include the nuSQuIDS interaction/attenuation term, and NuGen MC already accounts for Earth absorption (via `OneWeight`/propagation). Recompute the flux tables with **interactions shut OFF** (oscillations only, surface flux) so the absorption comes solely from the MC. Use `resources/FluxOscCalculator` (and the astro/conv/prompt calculators) with the interaction term disabled.
+2. **Zenith range too small.** Tables cover `cos(theta) ∈ [-1, 0.2]` only; the loader currently clamps down-going events to the horizon. Recompute over the full `[-1, 1]`.
+
+Also: the 16 DAEMONFlux gradient tables / errors should be regenerated from the DAEMONFlux
+app + `resources/FluxOscCalculator/errors_ddm_flux_calculator_with_interactions_from_file.cpp`
+(interactions off). Once the corrected tables exist, the conv **nominal** can also become
+fully native (it currently uses DANSA's validated MCEq weight because the atmo pickle's
+`OneWeight` convention is opaque — the 16 gradient *shapes* are already native via the table ratio).

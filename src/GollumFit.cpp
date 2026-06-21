@@ -22,9 +22,17 @@ hist_marray GollumFit::GetExpectationComponent(FitParameters fp, int component) 
   NeoDANSAWeighter wgt;
   wgt.attAstro = &attA; wgt.attGal = &attG;
   wgt.astroNorm = fp.astroNorm; wgt.normGalactic = fp.normGalactic;
-  wgt.gammaAstro = steeringParams_.gammaAstro; wgt.gammaGalactic = steeringParams_.gammaGalactic;
-  wgt.exposure = steeringParams_.neodansaExposure;
   wgt.convNorm = fp.convNorm; wgt.muonNorm = fp.muonNorm;
+  wgt.astroPivot = fp.astroPivot;
+  wgt.astroDeltaGamma = fp.astroDeltaGamma; wgt.astroDeltaGammaSec = fp.astroDeltaGammaSec;
+  // 16 DAEMONFlux conventional-flux nuisances (native ConvFluxWeigther)
+  wgt.hekp = fp.hadronicHEkp; wgt.hekm = fp.hadronicHEkm;
+  wgt.vhe1pip = fp.hadronicVHE1pip; wgt.vhe1pim = fp.hadronicVHE1pim;
+  wgt.vhe3kp = fp.hadronicVHE3kp; wgt.vhe3km = fp.hadronicVHE3km;
+  wgt.vhe3pip = fp.hadronicVHE3pip; wgt.vhe3pim = fp.hadronicVHE3pim;
+  wgt.vhe3p = fp.hadronicVHE3p; wgt.vhe3n = fp.hadronicVHE3n;
+  wgt.cr1 = fp.cosmicRay1; wgt.cr2 = fp.cosmicRay2; wgt.cr3 = fp.cosmicRay3;
+  wgt.cr4 = fp.cosmicRay4; wgt.cr5 = fp.cosmicRay5; wgt.cr6 = fp.cosmicRay6;
   wgt.component = component;
   std::function<double(const Event&)> f = [&wgt](const Event& e){ return wgt(e); };
   return GetWeightedExpectation(f);
@@ -42,30 +50,58 @@ static std::vector<double> neodansa_readH5Vec(hid_t file, const char* name){
   return v;
 }
 
+// NeoDANSA: evaluate a nuSQuIDS flux table at (pdg, E_GeV, trueZenith), clamping to the
+// table's [100 GeV, 1 PeV] support and power-law (E^-2) extrapolating above it (rare
+// high-true-E events; their flux is tiny). Keeps astro + conv + 16 gradients consistent.
+static double neodansa_evalFlux(LW::nuSQUIDSAtmFlux<>* f, LW::ParticleType pt,
+                                double E_GeV, double trueZen){
+  static const double Emin = 100.0, Emax = 1.0e6;  // GeV (table bounds: 1e11-1e15 eV)
+  double cth = std::cos(trueZen);                   // tables cover cos(theta) in [-1, 0.2]
+  if(cth > 0.2) cth = 0.2;                           // clamp down-going to the horizon value
+  if(cth < -1.0) cth = -1.0;
+  LW::Event lw{}; lw.primary_type = pt; lw.zenith = std::acos(cth);
+  if(E_GeV < Emin){ lw.energy = Emin; return f->EvaluateFlux(lw); }
+  if(E_GeV > Emax){ lw.energy = Emax; return f->EvaluateFlux(lw)*std::pow(Emax/E_GeV, 2.0); }
+  lw.energy = E_GeV; return f->EvaluateFlux(lw);
+}
+
 void GollumFit::LoadNeoDANSAMC(const std::string& path){
+  if(steeringParams_.neodansaFluxDir.empty())
+    throw std::runtime_error("LoadNeoDANSAMC: steeringParams.neodansaFluxDir not set");
   hid_t file = H5Fopen(path.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
   if(file < 0) throw std::runtime_error("LoadNeoDANSAMC: cannot open "+path);
-  auto recoE = neodansa_readH5Vec(file,"recoEnergy");
-  auto dec   = neodansa_readH5Vec(file,"dec");
-  auto ra    = neodansa_readH5Vec(file,"ra");
-  auto trueE = neodansa_readH5Vec(file,"trueEnergy");
-  auto ow    = neodansa_readH5Vec(file,"oneWeight");
-  auto cd    = neodansa_readH5Vec(file,"columnDens");
-  auto cdg   = neodansa_readH5Vec(file,"columnDensGalactic");
-  auto st    = neodansa_readH5Vec(file,"spatialTemplate");
+  auto recoE   = neodansa_readH5Vec(file,"recoEnergy");
+  auto dec     = neodansa_readH5Vec(file,"dec");
+  auto ra      = neodansa_readH5Vec(file,"ra");
+  auto trueE   = neodansa_readH5Vec(file,"trueEnergy");
+  auto trueZen = neodansa_readH5Vec(file,"trueZenith");
+  auto pdg     = neodansa_readH5Vec(file,"pdg");
+  auto ow      = neodansa_readH5Vec(file,"oneWeight");
+  auto cd      = neodansa_readH5Vec(file,"columnDens");
+  auto cdg     = neodansa_readH5Vec(file,"columnDensGalactic");
+  auto st      = neodansa_readH5Vec(file,"spatialTemplate");
   H5Fclose(file);
+  // GollumFit's native astrophysical flux table (oscillation-averaged).
+  auto fluxAstro = std::make_shared<LW::nuSQUIDSAtmFlux<>>(steeringParams_.neodansaFluxDir+"/astro.hdf5");
+  fluxAstro->EnableAveragedEval(0.0);
+  const double expo = steeringParams_.neodansaExposure;
+  const double gGal = steeringParams_.gammaGalactic;
   const size_t N = recoE.size();
   mainSimulation_.clear();
   for(size_t i=0;i<N;++i){
     Event e;
     e.energy = (float)recoE[i];
-    e.zenith = (float)std::acos(-std::sin(dec[i])); // cos(zenith) = -sin(dec) at the South Pole
+    e.zenith = (float)std::acos(-std::sin(dec[i])); // reco cos(zenith) = -sin(dec) at the South Pole (binning)
     e.ra = (float)ra[i];
     e.primaryEnergy = (float)trueE[i];
+    e.primaryZenith = (float)trueZen[i];
+    e.primaryType = (LW::ParticleType)(int)std::lround(pdg[i]);
     e.oneWeight = ow[i];
     e.columnDens = cd[i];
     e.columnDensGalactic = cdg[i];
     e.spatialTemplate = st[i];
+    e.cachedAstroWeight = neodansa_evalFlux(fluxAstro.get(), e.primaryType, trueE[i], trueZen[i]) * ow[i] * expo;
+    e.cachedGalacticWeight = ow[i] * 1.0e-18 * std::pow(trueE[i]/1.0e5, -gGal) * expo;
     e.num_events = 1;
     e.topology = 0;
     e.cachedWeight = 1.0;
@@ -77,19 +113,59 @@ void GollumFit::LoadNeoDANSAMC(const std::string& path){
 }
 
 void GollumFit::LoadNeoDANSABackground(const std::string& atmoPath, const std::string& muonPath){
-  // atmospheric neutrinos (MCEq weight -> cachedAtmoWeight)
+  // atmospheric neutrinos: build cachedConvWeight + 16 DAEMONFlux gradient caches from
+  // GollumFit's shipped nuSQuIDS conv + gradient tables x OneWeight (GollumFit computes the gradients).
   {
+    if(steeringParams_.neodansaFluxDir.empty())
+      throw std::runtime_error("LoadNeoDANSABackground: steeringParams.neodansaFluxDir not set");
     hid_t f = H5Fopen(atmoPath.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
     if(f<0) throw std::runtime_error("LoadNeoDANSABackground: cannot open "+atmoPath);
     auto E=neodansa_readH5Vec(f,"recoEnergy"); auto dec=neodansa_readH5Vec(f,"dec");
-    auto ra=neodansa_readH5Vec(f,"ra"); auto w=neodansa_readH5Vec(f,"cachedWeight");
+    auto ra=neodansa_readH5Vec(f,"ra"); auto trueE=neodansa_readH5Vec(f,"trueEnergy");
+    auto trueZen=neodansa_readH5Vec(f,"trueZenith"); auto pdg=neodansa_readH5Vec(f,"pdg");
+    auto ow=neodansa_readH5Vec(f,"oneWeight"); auto veto=neodansa_readH5Vec(f,"vetoPF");
+    auto mceq=neodansa_readH5Vec(f,"mceqWeight"); // legacy cross-check
     H5Fclose(f);
+    const std::string& D = steeringParams_.neodansaFluxDir;
+    auto LF = [&](const char* fn){ return std::make_shared<LW::nuSQUIDSAtmFlux<>>(D+"/"+fn); };
+    auto fConv = LF("atmospheric.hdf5");
+    // 16 gradient tables in the same order as the Event cache fields
+    std::shared_ptr<LW::nuSQUIDSAtmFlux<>> g[16] = {
+      LF("he_K+_.hdf5"), LF("he_K-_.hdf5"), LF("vhe1_pi+_.hdf5"), LF("vhe1_pi-_.hdf5"),
+      LF("vhe3_K+_.hdf5"), LF("vhe3_K-_.hdf5"), LF("vhe3_pi+_.hdf5"), LF("vhe3_pi-_.hdf5"),
+      LF("vhe3_p_.hdf5"), LF("vhe3_n_.hdf5"),
+      LF("GSF_1_.hdf5"), LF("GSF_2_.hdf5"), LF("GSF_3_.hdf5"), LF("GSF_4_.hdf5"), LF("GSF_5_.hdf5"), LF("GSF_6_.hdf5") };
+    // Oscillation-averaged evaluation (conv oscillations are washed out at TeV+; the
+    // non-averaged phase interpolation produces huge artifacts between energy nodes).
+    fConv->EnableAveragedEval(0.0);
+    for(int k=0;k<16;++k) g[k]->EnableAveragedEval(0.0);
+    const double expo = steeringParams_.neodansaExposure;
     for(size_t i=0;i<E.size();++i){
       Event e; e.energy=(float)E[i]; e.zenith=(float)std::acos(-std::sin(dec[i]));
-      e.ra=(float)ra[i]; e.cachedAtmoWeight=w[i]; e.num_events=1; e.topology=0; e.cachedWeight=1.0;
+      e.ra=(float)ra[i]; e.primaryEnergy=(float)trueE[i]; e.primaryZenith=(float)trueZen[i];
+      e.primaryType=(LW::ParticleType)(int)std::lround(pdg[i]);
+      // Conv NOMINAL = DANSA's validated MCEq weight (the atmo pickle's OneWeight
+      // convention is opaque); the 16 DAEMONFlux gradient SHAPES come from GollumFit's
+      // native nuSQuIDS tables as fractional responses (absolute scale cancels in the ratio).
+      const double fc = neodansa_evalFlux(fConv.get(), e.primaryType, trueE[i], trueZen[i]);
+      e.cachedConvWeight = mceq[i];
+      e.cachedAtmoWeight = mceq[i];
+      double gr[16];
+      for(int k=0;k<16;++k){
+        double frac = (fc>0.0) ? (neodansa_evalFlux(g[k].get(), e.primaryType, trueE[i], trueZen[i]) - fc)/fc : 0.0;
+        gr[k] = mceq[i]*frac;
+      }
+      e.cachedHadronicHEkp=gr[0]; e.cachedHadronicHEkm=gr[1];
+      e.cachedHadronicVHE1pip=gr[2]; e.cachedHadronicVHE1pim=gr[3];
+      e.cachedHadronicVHE3kp=gr[4]; e.cachedHadronicVHE3km=gr[5];
+      e.cachedHadronicVHE3pip=gr[6]; e.cachedHadronicVHE3pim=gr[7];
+      e.cachedHadronicVHE3p=gr[8]; e.cachedHadronicVHE3n=gr[9];
+      e.cachedCosmicRay1=gr[10]; e.cachedCosmicRay2=gr[11]; e.cachedCosmicRay3=gr[12];
+      e.cachedCosmicRay4=gr[13]; e.cachedCosmicRay5=gr[14]; e.cachedCosmicRay6=gr[15];
+      e.num_events=1; e.topology=0; e.cachedWeight=1.0;
       mainSimulation_.push_back(e);
     }
-    std::cout<<"LoadNeoDANSABackground: loaded "<<E.size()<<" atmo-nu events"<<std::endl;
+    std::cout<<"LoadNeoDANSABackground: loaded "<<E.size()<<" atmo-nu events (native conv + 16 gradients)"<<std::endl;
   }
   // atmospheric muons (Corsika weight -> cachedMuonWeight)
   {
