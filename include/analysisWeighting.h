@@ -16,6 +16,7 @@
 #include "GollumParameters.h"
 #include "GollumTools.h"
 #include "utils.h"
+#include "DMAttenuation.h"   // gollumfit::dm::DMAttenuator (NeoDANSA DM survival probability)
 
 /**
 * @file analysisWeighting.h
@@ -172,6 +173,27 @@ struct brokenpowerlawTiltWeighter : public phys_tools::GenericWeighter<brokenpow
             result_type weight = (e.primaryEnergy>medianEnergy) ? pow(e.primaryEnergy/medianEnergy,-deltaIndex2) : pow(e.primaryEnergy/medianEnergy,-deltaIndex1);
             return(weight);
         }
+};
+
+//================================================================================
+// DM SURVIVAL WEIGHTER (NeoDANSA): value-only attenuation factor att(columnDens, E)
+//================================================================================
+// Multiplies a flux by the DM cascade survival probability. The DMAttenuator is built from
+// g/mphi/mx VALUES (the GSL eigensolve is not autodiff-able), so this returns a quantity that
+// is constant w.r.t. the autodiff (FD) parameters -- the DM physics params are SCANNED, not
+// differentiated; the nuisance gradients flow through unaffected.
+template<typename T> inline double dm_value(const T& x){ return (double)x.value(); }
+inline double dm_value(double x){ return x; }
+
+template<typename Event, typename T>
+struct DMSurvivalWeighter : public phys_tools::GenericWeighter<DMSurvivalWeighter<Event,T>>{
+    const gollumfit::dm::DMAttenuator* att_;
+    double Event::* cd_;   // &Event::columnDens (astro) or &Event::columnDensGalactic
+    using result_type = T;
+    DMSurvivalWeighter(const gollumfit::dm::DMAttenuator* att, double Event::* cd): att_(att), cd_(cd){}
+    result_type operator()(const Event& e) const {
+        return result_type(att_->att_one(e.*cd_, (double)e.primaryEnergy));
+    }
 };
 
 //================================================================================
@@ -985,6 +1007,11 @@ struct WeighterMaker{
         bool holeice_splines_loaded_ = false;
         bool attenuation_splines_loaded_ = false;
         gollumfit::SteeringParams const * steering;
+        // NeoDANSA: DM attenuators cached per (g,mphi,mx) so the GSL eigensolve runs once per
+        // DM point, not per likelihood/gradient evaluation (operator() is const -> mutable).
+        mutable std::shared_ptr<gollumfit::dm::DMAttenuator> dmAttA_ = nullptr;
+        mutable std::shared_ptr<gollumfit::dm::DMAttenuator> dmAttG_ = nullptr;
+        mutable double dmG_ = -1, dmMphi_ = -1, dmMx_ = -1;
     public:
         // default constructor // bad bad
         /**
@@ -1145,7 +1172,7 @@ struct WeighterMaker{
                 DataType mx           = params[40];
                 DataType normGalactic = params[41];
                 DataType muonNorm     = params[42];
-                (void)g; (void)mphi; (void)mx; (void)normGalactic; (void)muonNorm;
+                // g/mphi/mx/normGalactic/muonNorm are used by the NeoDANSA branch below.
 
 
                 // phys_tools::autodiff::FD<38> paux;
@@ -1155,6 +1182,37 @@ struct WeighterMaker{
                 using cachedWeighter=cachedValueWeighter<DataType,Event,double>;
                 cachedWeighter astroFlux(&Event::cachedAstroWeight);
                 cachedWeighter promptFlux(&Event::cachedPromptWeight);
+
+                // ---- NeoDANSA branch: custom-loaded MC, no detector-systematic splines, with
+                // the DM cascade attenuation folded in. astro/galactic flux come from the native
+                // tables (cachedAstroWeight/cachedGalacticWeight), conv from ConvFluxWeigther
+                // (16 DAEMONFlux gradients), muon from cachedMuonWeight. DM = value-only survival
+                // factor (g/mphi/mx scanned, not autodiff). ----
+                if(steering && steering->useNeoDANSAWeighter){
+                    double gv = dm_value(g), mpv = dm_value(mphi), mxv = dm_value(mx);
+                    if(!dmAttA_ || gv!=dmG_ || mpv!=dmMphi_ || mxv!=dmMx_){
+                        auto in = gollumfit::dm::interaction_from_string(steering->interaction);
+                        dmAttA_ = std::make_shared<gollumfit::dm::DMAttenuator>(in, gv, mpv, mxv);
+                        dmAttA_->prepare(steering->gammaAstro);
+                        dmAttG_ = std::make_shared<gollumfit::dm::DMAttenuator>(in, gv, mpv, mxv);
+                        dmAttG_->prepare(steering->gammaGalactic);
+                        dmG_ = gv; dmMphi_ = mpv; dmMx_ = mxv;
+                    }
+                    cachedWeighter galacticFlux(&Event::cachedGalacticWeight);
+                    cachedWeighter muonFlux(&Event::cachedMuonWeight);
+                    cachedWeighter spatialW(&Event::spatialTemplate);
+                    DMSurvivalWeighter<Event,DataType> dmAstroW(dmAttA_.get(), &Event::columnDens);
+                    DMSurvivalWeighter<Event,DataType> dmGalW(dmAttG_.get(), &Event::columnDensGalactic);
+                    auto conv = ConvFluxWeigther<Event,DataType>(hekp,hekm,vhe1pip,vhe1pim,vhe3kp,vhe3km,
+                                                                 vhe3pip,vhe3pim,vhe3p,vhe3n,
+                                                                 cr1,cr2,cr3,cr4,cr5,cr6);
+                    auto astro = astroNorm * astroFlux
+                               * brokenpowerlawTiltWeighter<Event,DataType>(astroPivot, astroDeltaGamma, astroDeltaGammaSec)
+                               * dmAstroW;
+                    auto galactic = normGalactic * galacticFlux * spatialW * dmGalW;
+                    auto muon = muonNorm * muonFlux;
+                    return convNorm*conv + astro + galactic + muon;
+                }
                 //flux
                 cachedWeighter adu_wgt(&Event::cachedAtmDensity);
                 cachedWeighter klu_wgt(&Event::cachedKaonLosses);

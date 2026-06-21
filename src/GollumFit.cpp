@@ -9,32 +9,23 @@
 #include "GollumMCSpecifications.h"
 #include "DMCrossSections.h"
 #include "DMAttenuation.h"
-#include "NeoDANSAWeighter.h"
+// NeoDANSAWeighter retired: the DM/galactic/muon terms are now folded into DFWM (analysisWeighting.h).
 
 namespace gollumfit {
 
 hist_marray GollumFit::GetExpectationComponent(FitParameters fp, int component) const {
-  dm::DMInteraction in = dm::interaction_from_string(steeringParams_.interaction);
-  dm::DMAttenuator attA(in, fp.g, fp.mphi, fp.mx);
-  dm::DMAttenuator attG(in, fp.g, fp.mphi, fp.mx);
-  attA.prepare(steeringParams_.gammaAstro);
-  attG.prepare(steeringParams_.gammaGalactic);
-  NeoDANSAWeighter wgt;
-  wgt.attAstro = &attA; wgt.attGal = &attG;
-  wgt.astroNorm = fp.astroNorm; wgt.normGalactic = fp.normGalactic;
-  wgt.convNorm = fp.convNorm; wgt.muonNorm = fp.muonNorm;
-  wgt.astroPivot = fp.astroPivot;
-  wgt.astroDeltaGamma = fp.astroDeltaGamma; wgt.astroDeltaGammaSec = fp.astroDeltaGammaSec;
-  // 16 DAEMONFlux conventional-flux nuisances (native ConvFluxWeigther)
-  wgt.hekp = fp.hadronicHEkp; wgt.hekm = fp.hadronicHEkm;
-  wgt.vhe1pip = fp.hadronicVHE1pip; wgt.vhe1pim = fp.hadronicVHE1pim;
-  wgt.vhe3kp = fp.hadronicVHE3kp; wgt.vhe3km = fp.hadronicVHE3km;
-  wgt.vhe3pip = fp.hadronicVHE3pip; wgt.vhe3pim = fp.hadronicVHE3pim;
-  wgt.vhe3p = fp.hadronicVHE3p; wgt.vhe3n = fp.hadronicVHE3n;
-  wgt.cr1 = fp.cosmicRay1; wgt.cr2 = fp.cosmicRay2; wgt.cr3 = fp.cosmicRay3;
-  wgt.cr4 = fp.cosmicRay4; wgt.cr5 = fp.cosmicRay5; wgt.cr6 = fp.cosmicRay6;
-  wgt.component = component;
-  std::function<double(const Event&)> f = [&wgt](const Event& e){ return wgt(e); };
+  // Per-component expectation via the unified DFWM weighter (which folds in the DM attenuation,
+  // galactic, and muon). component 0 = total; otherwise mask the other norms to isolate one:
+  // 1 = astro, 2 = galactic, 3 = conv, 4 = muon.
+  FitParameters m = fp;
+  if(component != 0){
+    if(component != 1) m.astroNorm    = 0.0;
+    if(component != 2) m.normGalactic = 0.0;
+    if(component != 3) m.convNorm     = 0.0;
+    if(component != 4) m.muonNorm     = 0.0;
+  }
+  auto weighter = DFWM(ConvertFitParameters(m));
+  std::function<double(const Event&)> f = [&weighter](const Event& e){ return weighter(e); };
   return GetWeightedExpectation(f);
 }
 
@@ -180,6 +171,9 @@ void GollumFit::LoadNeoDANSABackground(const std::string& atmoPath, const std::s
     for(size_t i=0;i<E.size();++i){
       Event e; e.energy=(float)E[i]; e.zenith=(float)std::acos(-std::sin(dec[i]));
       e.ra=(float)ra[i]; e.cachedMuonWeight=w[i]; e.num_events=1; e.topology=0; e.cachedWeight=1.0;
+      // finite primaryEnergy + zero column density so the (zero-weight) astro/galactic DFWM
+      // terms evaluate to a finite 0 for muon events (no true neutrino energy here).
+      e.primaryEnergy=(float)E[i]; e.columnDens=0.0; e.columnDensGalactic=0.0;
       mainSimulation_.push_back(e);
     }
     std::cout<<"LoadNeoDANSABackground: loaded "<<E.size()<<" muon events"<<std::endl;
