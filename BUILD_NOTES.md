@@ -71,3 +71,34 @@ app + `resources/FluxOscCalculator/errors_ddm_flux_calculator_with_interactions_
 (interactions off). Once the corrected tables exist, the conv **nominal** can also become
 fully native (it currently uses DANSA's validated MCEq weight because the atmo pickle's
 `OneWeight` convention is opaque — the 16 gradient *shapes* are already native via the table ratio).
+
+## osc-only daemonflux flux tables (2026-06-21) — addresses the flux-recompute TODO
+
+`resources/FluxOscCalculator/osc_only_atmospheric_flux_calculator.cpp`: propagates a surface
+flux with **oscillations only** (`nuSQUIDSAtm<>(linspace(-1,1,100), logspace(1e2,1e7,350), 3,
+both, /*iinteraction=*/false)` + EarthAtm for the MSW matter potential) over the **full zenith
+range**, writing a nuSQuIDS HDF5. No Earth absorption (NuGen already accounts for it).
+
+Pipeline:
+1. `NeoDANSA/scripts/make_daemonflux_dat.py` (run in the DANSA env; uses the daemonflux
+   library + its cache) dumps the conventional surface flux (nominal + 16 DAEMONFlux gradients)
+   to 8-col .dat on the nuSQuIDS grid. daemonflux returns E^3*dPhi/dE -> divide by E^3.
+2. Build object-FIRST (libs-before-object link order silently produces a broken binary, and
+   the macOS bind mount strips +x — compile into container-local /tmp):
+   `g++ -O3 -std=c++11 -pthread $(pkg-config nusquids --cflags) -I/usr/include/hdf5/serial
+    osc_only_atmospheric_flux_calculator.cpp $(pkg-config nusquids --libs) -lhdf5 -lhdf5_hl -o /tmp/calc`
+3. Run on each .dat -> `<name>.hdf5` (atmospheric.hdf5, he_K+_.hdf5 … GSF_6_.hdf5) + an
+   isotropic-E^-2 `astro.hdf5`. Point `neodansaFluxDir` there.
+
+Loader (`neodansa_evalFlux`) now spans full cos(theta) [-1,1] and E [1e2,1e7] (no horizon clamp).
+Validated: full zenith works (no out-of-bounds), conv = 2510, DAEMONFlux 1σ gradients physical
+(GSF1 +4.5%, K+2P +9.8%); inject/recover closes to <1e-3.
+
+**Atmo absolute normalization (known):** DANSA's atmo weight uses precomputed
+`weights_MCEq` (= flux × oneweight × livetime) directly and the reduced atmo pickle dropped its
+generation `NEvents`/`nFiles`, so an absolute `daemonflux × oneweight` conv nominal is NOT
+recoverable (the snowstorm `NEvents`/`nFiles` belong to a different production → off by ~1e7).
+So conv NOMINAL stays DANSA MCEq (= the H3a+Sibyll conv flux, i.e. the DANSA oracle by
+construction) and the daemonflux osc-only tables supply the gradient SHAPES (scale cancels).
+Fully-native conv would need the atmo MC's own generation normalization, or reweighting the
+signal NuGen (which keeps correct OneWeight) to conv flux + a self-veto — follow-up.

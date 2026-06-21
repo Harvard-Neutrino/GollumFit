@@ -55,9 +55,10 @@ static std::vector<double> neodansa_readH5Vec(hid_t file, const char* name){
 // high-true-E events; their flux is tiny). Keeps astro + conv + 16 gradients consistent.
 static double neodansa_evalFlux(LW::nuSQUIDSAtmFlux<>* f, LW::ParticleType pt,
                                 double E_GeV, double trueZen){
-  static const double Emin = 100.0, Emax = 1.0e6;  // GeV (table bounds: 1e11-1e15 eV)
-  double cth = std::cos(trueZen);                   // tables cover cos(theta) in [-1, 0.2]
-  if(cth > 0.2) cth = 0.2;                           // clamp down-going to the horizon value
+  // osc-only daemonflux tables span cos(theta) in [-1, 1] and E in [1e2, 1e7] GeV.
+  static const double Emin = 100.0, Emax = 1.0e7;
+  double cth = std::cos(trueZen);
+  if(cth > 1.0) cth = 1.0;
   if(cth < -1.0) cth = -1.0;
   LW::Event lw{}; lw.primary_type = pt; lw.zenith = std::acos(cth);
   if(E_GeV < Emin){ lw.energy = Emin; return f->EvaluateFlux(lw); }
@@ -144,9 +145,11 @@ void GollumFit::LoadNeoDANSABackground(const std::string& atmoPath, const std::s
       Event e; e.energy=(float)E[i]; e.zenith=(float)std::acos(-std::sin(dec[i]));
       e.ra=(float)ra[i]; e.primaryEnergy=(float)trueE[i]; e.primaryZenith=(float)trueZen[i];
       e.primaryType=(LW::ParticleType)(int)std::lround(pdg[i]);
-      // Conv NOMINAL = DANSA's validated MCEq weight (the atmo pickle's OneWeight
-      // convention is opaque); the 16 DAEMONFlux gradient SHAPES come from GollumFit's
-      // native nuSQuIDS tables as fractional responses (absolute scale cancels in the ratio).
+      // Conv NOMINAL = DANSA's validated MCEq weight = the H3a+Sibyll conv flux x the correct
+      // per-event oneweight x livetime (the atmo pickle dropped its generation NEvents/nFiles,
+      // so an absolute daemonflux*oneweight nominal is not recoverable). The 16 DAEMONFlux
+      // gradient SHAPES come from the OSC-ONLY full-zenith daemonflux tables as fractional
+      // responses (oscillations only -> no Earth-absorption double count; scale cancels).
       const double fc = neodansa_evalFlux(fConv.get(), e.primaryType, trueE[i], trueZen[i]);
       e.cachedConvWeight = mceq[i];
       e.cachedAtmoWeight = mceq[i];
